@@ -244,6 +244,7 @@ class DashboardFilter(SupersetFilter):
         1. Those which the user owns
         2. Those which the user has favorited
         3. Those which have been published (if they have access to at least one slice)
+	4. Those which the user has Viewer access
 
     If the user is an admin show them all dashboards.
     This means they do not get curation but can still sort by "published"
@@ -285,9 +286,16 @@ class DashboardFilter(SupersetFilter):
             .filter(User.id == User.get_user_id())
         )
 
+        viewer_ids_query = (
+            db.session.query(Dash.id)
+            .join(Dash.viewers)
+            .filter(User.id == User.get_user_id())
+        )
+
         query = query.filter(
             or_(
                 Dash.id.in_(owner_ids_query),
+                Dash.id.in_(viewer_ids_query),
                 Dash.id.in_(published_dash_query),
                 Dash.id.in_(users_favorite_dash_query),
             )
@@ -474,6 +482,8 @@ appbuilder.add_view_no_menu(SliceAddView)
 
 
 class DashboardModelView(SupersetModelView, DeleteMixin):
+
+    print ("DashboardModelView")
     route_base = "/dashboard"
     datamodel = SQLAInterface(models.Dashboard)
 
@@ -487,12 +497,15 @@ class DashboardModelView(SupersetModelView, DeleteMixin):
     edit_columns = [
         "dashboard_title",
         "slug",
-        "owners",
+        "owners",					#hereRR
+        "viewers",
         "position_json",
         "css",
         "json_metadata",
         "published",
     ]
+
+    print ("after edit_columns")
     show_columns = edit_columns + ["table_names", "charts"]
     search_columns = ("dashboard_title", "slug", "owners", "published")
     add_columns = edit_columns
@@ -521,14 +534,21 @@ class DashboardModelView(SupersetModelView, DeleteMixin):
             "Determines whether or not this dashboard is "
             "visible in the list of all dashboards"
         ),
+        "viewers": _("Viewers is a list of users who can view the dashboard, even if not published."),
+        "published": _(
+            "Determines whether or not this dashboard is "
+            "visible in the list of all dashboards"
+        ),
     }
+    print ("after description")
     base_filters = [["slice", DashboardFilter, lambda: []]]
     label_columns = {
         "dashboard_link": _("Dashboard"),
         "dashboard_title": _("Title"),
         "slug": _("Slug"),
         "charts": _("Charts"),
-        "owners": _("Owners"),
+        "owners": _("Owners111"),
+        "viewers": ("Viewers"),
         "creator": _("Creator"),
         "modified": _("Modified"),
         "position_json": _("Position JSON"),
@@ -536,6 +556,8 @@ class DashboardModelView(SupersetModelView, DeleteMixin):
         "json_metadata": _("JSON Metadata"),
         "table_names": _("Underlying Tables"),
     }
+
+    print ("after label")
 
     def pre_add(self, obj):
         obj.slug = obj.slug or None

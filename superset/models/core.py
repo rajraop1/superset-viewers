@@ -408,6 +408,16 @@ dashboard_user = Table(
 )
 
 
+dashboard_viewer = Table(
+    "dashboard_viewer",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("user_id", Integer, ForeignKey("ab_user.id")),
+    Column("dashboard_id", Integer, ForeignKey("dashboards.id")),
+)
+
+
+
 class Dashboard(Model, AuditMixinNullable, ImportMixin):
 
     """The dashboard object!"""
@@ -422,6 +432,7 @@ class Dashboard(Model, AuditMixinNullable, ImportMixin):
     slug = Column(String(255), unique=True)
     slices = relationship("Slice", secondary=dashboard_slices, backref="dashboards")
     owners = relationship(security_manager.user_model, secondary=dashboard_user)
+    viewers =  relationship(security_manager.user_model, secondary=dashboard_viewer)
     published = Column(Boolean, default=False)
 
     export_fields = [
@@ -1319,6 +1330,45 @@ class DatasourceAccessRequest(Model, AuditMixinNullable):
                 href = "{} Role".format(r.name)
             action_list = action_list + "<li>" + href + "</li>"
         return "<ul>" + action_list + "</ul>"
+
+
+class PublishUpdate(object):
+
+    @classmethod
+    def after_insert(cls, mapper, connection, target):
+
+      print ("---------------------------------------------------------------after_insert");
+
+    @classmethod
+    def after_update(cls, mapper, connection, target):
+
+      print ("---------------------------------------------------------------after_update");
+
+      #Dashboard d=target;
+
+      #json.dumps(d.__dict__);
+
+      print(target.id);
+      print(target.dashboard_title);
+      print(target.description);
+      print(target.published);
+
+    @classmethod
+    def after_delete(cls, mapper, connection, target):
+
+      print ("---------------------------------------------------------------after_delete");
+
+
+class DashboardPublish(PublishUpdate):
+
+    object_type = "dashboard"
+    print ("----------------------------------------------------------------------------DashboardPublish");
+
+
+
+sqla.event.listen(Dashboard, "after_insert", DashboardPublish.after_insert)
+sqla.event.listen(Dashboard, "after_update", DashboardPublish.after_update)
+sqla.event.listen(Dashboard, "after_delete", DashboardPublish.after_delete)
 
 
 # events for updating tags
